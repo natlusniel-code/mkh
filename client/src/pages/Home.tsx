@@ -7,6 +7,7 @@ import { ProductCard, ProductGrid } from "@/components/ProductCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/states";
 import { useStore } from "@/lib/store";
 import { formatNaira } from "@shared/markethub";
+import { categoryImage } from "@/lib/category-images";
 import type { ProductCardData } from "@/lib/types";
 
 function Section({
@@ -67,7 +68,7 @@ export default function Home() {
         <div className="grid gap-6 p-8 sm:p-12 lg:grid-cols-2 lg:items-center">
           <div>
             <Badge className="bg-white/20 text-white backdrop-blur">
-              <Sparkles className="h-3 w-3" /> {data.totalProducts} products · 10 categories
+              <Sparkles className="h-3 w-3" /> Shop 10 departments
             </Badge>
             <h1 className="mt-4 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
               Everything you need, delivered across Nigeria.
@@ -122,13 +123,17 @@ export default function Home() {
             <Link
               key={c.id}
               to={`/products?category=${c.slug}`}
-              className="group flex flex-col items-center gap-2 rounded-2xl border bg-card p-4 text-center shadow-sm mh-card-hover"
+              className="group overflow-hidden rounded-2xl border bg-card shadow-sm mh-card-hover"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-lg font-bold text-primary">
-                {c.name.slice(0, 1)}
+              <span className="block aspect-[4/3] overflow-hidden bg-muted">
+                <img
+                  src={categoryImage(c.slug, c.image)}
+                  alt={c.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
               </span>
-              <span className="text-sm font-medium leading-tight">{c.name}</span>
-              <span className="text-xs text-muted-foreground">{c.productCount} items</span>
+              <span className="block px-3 py-2.5 text-center text-sm font-medium leading-tight">{c.name}</span>
             </Link>
           ))}
         </div>

@@ -10,6 +10,20 @@ import "dotenv/config";
 import pg from "pg";
 import { hashSync } from "bcryptjs";
 import { formatNaira } from "../shared/markethub";
+import { CATALOG_200 } from "./image-recs.mts";
+import { readFileSync } from "node:fs";
+
+// Self-hosted product photography (change 1). `hosted-images.json` maps a
+// product name to the images already uploaded to this app's own storage, so a
+// re-seed keeps the real, product-specific photos instead of falling back to
+// generic stock. Regenerate it with scripts/host-images.mts + fix-broken-images.mts.
+const HOSTED: Record<string, string[]> = (() => {
+  try {
+    return JSON.parse(readFileSync(new URL("./hosted-images.json", import.meta.url), "utf8"));
+  } catch {
+    return {};
+  }
+})();
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -350,11 +364,6 @@ const CATALOG: CatDef[] = [
   },
 ];
 
-const ADJECTIVES = [
-  "Premium", "Classic", "Deluxe", "Everyday", "Pro", "Ultra", "Compact", "Elegant", "Smart", "Essential",
-  "Signature", "Advanced", "Portable", "Luxury", "Modern", "Durable", "Sleek", "Comfort", "Elite", "Value",
-];
-
 const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
 
@@ -402,13 +411,14 @@ async function main() {
 
     // ── 2. products ─────────────────────────────────────────────────────────
     const products: ProductRow[] = [];
+    const productKeys: string[] = [];
     const usedSlugs = new Set<string>();
 
     for (const cat of CATALOG) {
       for (let i = 0; i < 20; i++) {
-        const noun = cat.nouns[i];
-        const adj = ADJECTIVES[(i * 7 + cat.slug.length) % ADJECTIVES.length];
-        const name = `${adj} ${noun}`;
+        const entry = CATALOG_200[cat.slug]?.[i];
+        if (!entry) throw new Error(`Missing CATALOG_200 entry: ${cat.slug}#${i}`);
+        const name = entry.name;
         let slug = slugify(name);
         let n = 2;
         while (usedSlugs.has(slug)) slug = `${slugify(name)}-${n++}`;
@@ -430,6 +440,7 @@ async function main() {
           `Built for everyday use with dependable quality, backed by nationwide delivery and a 7-day return window. ` +
           `Ships from our Lagos warehouse; pay by bank transfer and our team verifies your payment.`;
 
+        productKeys.push(`${cat.slug}|${name}`);
         products.push({
           name,
           slug,
@@ -462,25 +473,31 @@ async function main() {
        returning id, slug`,
       [JSON.stringify(products)],
     );
-    const idBySlug = new Map(inserted.rows.map((r) => [r.slug, r.id]));
+    const idByCatName = new Map(inserted.rows.map((r, idx) => [productKeys[idx], r.id]));
 
     // ── 3. images + variants ────────────────────────────────────────────────
     const images: ImageRow[] = [];
     const variants: VariantRow[] = [];
 
     for (const cat of CATALOG) {
-      const pool = IMG[cat.slug];
       for (let i = 0; i < 20; i++) {
-        const noun = cat.nouns[i];
-        const adj = ADJECTIVES[(i * 7 + cat.slug.length) % ADJECTIVES.length];
-        const slug = slugify(`${adj} ${noun}`);
-        const pid = idBySlug.get(slug);
+        const entry = CATALOG_200[cat.slug]?.[i];
+        if (!entry) continue;
+        const pid = idByCatName.get(`${cat.slug}|${entry.name}`);
         if (!pid) continue;
 
-        const count = int(2, 4);
-        const start = (i * 3) % pool.length;
+        // Prefer the self-hosted, product-specific photos; fall back to the
+        // curated per-product URLs, then to the category stock pool.
+        const hosted = HOSTED[entry.name];
+        const pool =
+          hosted && hosted.length > 0
+            ? hosted
+            : entry.images.length > 0
+              ? entry.images
+              : IMG[cat.slug].map((id) => U(id));
+        const count = Math.min(pool.length, int(2, 4));
         for (let k = 0; k < count; k++) {
-          images.push({ product_id: pid, url: U(pool[(start + k) % pool.length]), sort_order: k });
+          images.push({ product_id: pid, url: pool[k % pool.length], sort_order: k });
         }
 
         if (cat.variants === "size") {

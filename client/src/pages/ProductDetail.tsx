@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ProductCard, ProductGrid, ProductImage } from "@/components/ProductCard";
+import { ProductCard, ProductGrid } from "@/components/ProductCard";
+import { SwipeGallery } from "@/components/SwipeGallery";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/_core/useAuth";
@@ -21,7 +22,6 @@ export default function ProductDetail() {
   const utils = trpc.useUtils();
 
   const query = trpc.catalog.product.useQuery({ slug: slug ?? "" }, { enabled: Boolean(slug) });
-  const [activeImage, setActiveImage] = useState(0);
   const [qty, setQty] = useState(1);
   const [variantId, setVariantId] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
@@ -69,26 +69,7 @@ export default function ProductDetail() {
 
       <div className="mt-4 grid gap-8 lg:grid-cols-2">
         <div>
-          <div className="overflow-hidden rounded-2xl border bg-card">
-            <ProductImage src={images[activeImage] ?? null} alt={p.name} className="aspect-square w-full" />
-          </div>
-          {images.length > 1 ? (
-            <div className="mt-3 flex gap-2 overflow-x-auto mh-scrollbar-none">
-              {images.map((src, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActiveImage(i)}
-                  className={cn(
-                    "h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-muted",
-                    i === activeImage ? "border-primary" : "border-transparent",
-                  )}
-                >
-                  <img src={src} alt="" className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <SwipeGallery images={images} alt={p.name} />
         </div>
 
         <div>

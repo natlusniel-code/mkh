@@ -158,8 +158,13 @@ function productWhere(q: ProductQuery) {
     conds.push(or(ilike(products.name, term), ilike(products.description, term), ilike(products.subcategory, term)));
   }
   if (q.categorySlug) conds.push(eq(categories.slug, q.categorySlug));
-  if (q.minPrice !== undefined) conds.push(gte(products.price, String(q.minPrice)));
-  if (q.maxPrice !== undefined) conds.push(lte(products.price, String(q.maxPrice)));
+  // Price filters compare the EFFECTIVE price (the discounted price when the
+  // product is on sale, otherwise the list price). Filtering on `price` alone
+  // returned products whose sale price sat outside the requested range, which
+  // is what made "Electronics + ₦2,000–₦3,000" look broken.
+  const effective = sql`coalesce(${products.discountPrice}, ${products.price})`;
+  if (q.minPrice !== undefined) conds.push(gte(effective, String(q.minPrice)));
+  if (q.maxPrice !== undefined) conds.push(lte(effective, String(q.maxPrice)));
   if (q.discountedOnly) conds.push(sql`${products.discountPrice} is not null and ${products.discountPrice} > 0`);
   if (q.inStockOnly) conds.push(gte(products.stock, 1));
   if (q.featuredOnly) conds.push(eq(products.featured, true));

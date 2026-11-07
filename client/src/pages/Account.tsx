@@ -1,6 +1,21 @@
 import { useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
-import { Bell, Check, MapPin, Package, Plus, Trash2, User } from "lucide-react";
+import {
+  Bell,
+  Check,
+  ChevronRight,
+  Heart,
+  LogOut,
+  MapPin,
+  Package,
+  Plus,
+  Settings,
+  ShoppingBag,
+  Trash2,
+  Truck,
+  User,
+  Wallet,
+} from "lucide-react";
 import { trpc } from "@/_core/trpc";
 import { useAuth } from "@/_core/useAuth";
 import { Button } from "@/components/ui/button";
@@ -21,10 +36,19 @@ const TABS = [
   { id: "notifications", label: "Notifications", icon: Bell },
 ] as const;
 
+/** Temu-style order status shortcuts shown under the profile header. */
+const ORDER_SHORTCUTS = [
+  { key: "all", label: "All orders", icon: ShoppingBag, statuses: null as string[] | null },
+  { key: "to_pay", label: "To pay", icon: Wallet, statuses: ["pending_payment", "payment_verification"] },
+  { key: "to_ship", label: "To ship", icon: Package, statuses: ["paid", "processing"] },
+  { key: "to_receive", label: "To receive", icon: Truck, statuses: ["shipped"] },
+  { key: "reviews", label: "Reviews", icon: Heart, statuses: ["delivered"] },
+] as const;
+
 export default function Account() {
   const search = useSearch();
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useStore();
   const utils = trpc.useUtils();
 
@@ -81,29 +105,109 @@ export default function Account() {
 
   if (!user) return null;
 
+  const orders = overview.data?.orders ?? [];
+  const unread = (notifications.data ?? []).filter((n) => !n.read).length;
+  const displayName = overview.data?.profile?.fullName ?? overview.data?.user?.name ?? user.email.split("@")[0];
+  const initial = (displayName || "U").slice(0, 1).toUpperCase();
+
+  function countFor(statuses: readonly string[] | null) {
+    if (!statuses) return orders.length;
+    return orders.filter((o) => statuses.includes(o.status)).length;
+  }
+
   return (
     <div className="mh-container py-6 pb-16">
-      <h1 className="mh-page-title">My account</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
+      {/* Temu-style profile header (change 9) */}
+      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-primary to-violet text-white shadow-sm">
+        <div className="flex items-center gap-4 p-6 sm:p-8">
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/20 text-2xl font-bold backdrop-blur ring-2 ring-white/40">
+            {initial}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xl font-extrabold tracking-tight sm:text-2xl">{displayName}</h1>
+            <p className="truncate text-sm text-white/80">{user.email}</p>
+            {overview.data?.profile?.phone ? (
+              <p className="truncate text-xs text-white/70">{overview.data.profile.phone}</p>
+            ) : null}
+          </div>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="hidden border-white/40 bg-transparent text-white hover:bg-white/10 sm:inline-flex"
+          >
+            <Link to="/account?tab=profile"><Settings className="h-4 w-4" /> Edit</Link>
+          </Button>
+        </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
-        <nav className="flex gap-1 overflow-x-auto lg:flex-col mh-scrollbar-none">
+        <div className="grid grid-cols-5 border-t border-white/15 bg-black/10">
+          {ORDER_SHORTCUTS.map((s) => {
+            const Icon = s.icon;
+            const n = countFor(s.statuses);
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => navigate("/account?tab=orders")}
+                className="flex flex-col items-center gap-1 px-1 py-3 text-[11px] font-medium text-white/90 transition-colors hover:bg-white/10"
+              >
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {n > 0 ? (
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber px-1 text-[10px] font-bold text-amber-foreground">
+                      {n > 9 ? "9+" : n}
+                    </span>
+                  ) : null}
+                </span>
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr]">
+        {/* Temu-style menu list */}
+        <nav className="space-y-1 rounded-2xl border bg-card p-2 shadow-sm">
           {TABS.map((t) => {
             const Icon = t.icon;
+            const badge = t.id === "notifications" ? unread : 0;
             return (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => navigate(`/account?tab=${t.id}`)}
                 className={cn(
-                  "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  tab === t.id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-muted",
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  tab === t.id ? "bg-primary-soft text-primary" : "text-foreground hover:bg-muted",
                 )}
               >
-                <Icon className="h-4 w-4" /> {t.label}
+                <Icon className="h-4 w-4" />
+                <span className="flex-1 text-left">{t.label}</span>
+                {badge > 0 ? <Badge variant="amber">{badge}</Badge> : null}
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             );
           })}
+          <Link
+            to="/wishlist"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            <Heart className="h-4 w-4" />
+            <span className="flex-1 text-left">Wishlist</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await logout();
+              navigate("/");
+            }}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="flex-1 text-left">Log out</span>
+          </button>
         </nav>
 
         <div>
@@ -140,7 +244,7 @@ export default function Account() {
             </section>
           ) : tab === "orders" ? (
             <section className="space-y-3">
-              {(overview.data?.orders ?? []).length === 0 ? (
+              {orders.length === 0 ? (
                 <EmptyState
                   icon={<Package className="h-6 w-6" />}
                   title="No orders yet"
@@ -148,7 +252,7 @@ export default function Account() {
                   action={<Button asChild><Link to="/products">Start shopping</Link></Button>}
                 />
               ) : (
-                (overview.data?.orders ?? []).map((o) => (
+                orders.map((o) => (
                   <div key={o.id} className="rounded-2xl border bg-card p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>

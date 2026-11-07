@@ -129,7 +129,7 @@ const authRouter = router({
           audience: "customer",
           type: "welcome",
           title: "Welcome to MarketHub 🎉",
-          body: "Browse 200+ products across 10 categories. Your cart and orders are saved here.",
+          body: "Browse the departments and add what you like to your cart. Your cart and orders are saved here.",
           link: "/products",
         });
         return { ok: true };

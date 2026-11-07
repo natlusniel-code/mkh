@@ -22,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
 import { formatNaira } from "@shared/markethub";
+import { BottomNav } from "@/components/BottomNav";
+import { categoryImage } from "@/lib/category-images";
 
 function Logo() {
   return (
@@ -72,7 +74,7 @@ function SearchBar({ className }: { className?: string }) {
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
-            placeholder="Search 200+ products…"
+            placeholder="Search products…"
             aria-label="Search products"
             className="h-10 rounded-full pl-9"
           />
@@ -232,6 +234,37 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
   const categories = trpc.catalog.categories.useQuery();
   const [location] = useLocation();
 
+  // Hide-on-scroll-down / show-on-scroll-up header (change 2). The header
+  // slides away as the shopper scrolls down and returns as soon as they scroll
+  // back up a little, so the search bar and market tabs are always one flick
+  // away without permanently eating vertical space.
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const lastY = useRef(0);
+
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const delta = y - lastY.current;
+        if (y < 80) {
+          setHeaderHidden(false);
+        } else if (delta > 6) {
+          setHeaderHidden(true);
+        } else if (delta < -6) {
+          setHeaderHidden(false);
+        }
+        lastY.current = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   useEffect(() => setMobileOpen(false), [location]);
 
   return (
@@ -240,7 +273,12 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
         Free delivery on orders over {formatNaira(100000)} · Pay by bank transfer, verified by our team
       </div>
 
-      <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header
+        className={cn(
+          "sticky top-0 z-30 border-b bg-background/95 backdrop-blur transition-transform duration-300 ease-out supports-[backdrop-filter]:bg-background/80",
+          headerHidden && !mobileOpen ? "-translate-y-full" : "translate-y-0",
+        )}
+      >
         <div className="mh-container flex h-16 items-center gap-3">
           <button
             type="button"
@@ -294,10 +332,17 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
 
         {mobileOpen ? (
           <div className="border-t bg-background lg:hidden">
-            <div className="mh-container grid grid-cols-2 gap-1 py-3">
+            <div className="mh-container grid grid-cols-2 gap-2 py-3">
               {(categories.data ?? []).map((c) => (
-                <Link key={c.id} to={`/products?category=${c.slug}`} className="rounded-lg px-3 py-2 text-sm hover:bg-muted">
-                  {c.name}
+                <Link
+                  key={c.id}
+                  to={`/products?category=${c.slug}`}
+                  className="flex items-center gap-3 rounded-xl border bg-card p-2 shadow-sm"
+                >
+                  <span className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+                    <img src={categoryImage(c.slug, c.image)} alt="" className="h-full w-full object-cover" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
                 </Link>
               ))}
             </div>
@@ -305,14 +350,14 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
         ) : null}
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-24">{children}</main>
 
       <footer className="mt-16 border-t bg-muted/30">
         <div className="mh-container grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Logo />
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Nigeria's everyday online marketplace. 200+ products across 10 categories, priced in Naira.
+              Nigeria's everyday online marketplace — shop across ten departments, all priced in Naira.
             </p>
           </div>
           <div>
@@ -348,6 +393,7 @@ export function StoreLayout({ children }: { children: React.ReactNode }) {
         </div>
       </footer>
 
+      <BottomNav />
       <Toasts />
     </div>
   );

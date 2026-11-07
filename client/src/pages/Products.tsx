@@ -80,8 +80,7 @@ export default function Products() {
         <div>
           <h1 className="mh-page-title">{activeCategory ? activeCategory.name : "All products"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {query.data ? `${query.data.total} product${query.data.total === 1 ? "" : "s"} found` : "Loading products…"}
-            {params.get("search") ? ` for “${params.get("search")}”` : ""}
+            {params.get("search") ? `Results for “${params.get("search")}”` : "Browse the range and refine with the filters."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -135,7 +134,6 @@ export default function Products() {
                     )}
                   >
                     <span className="truncate">{c.name}</span>
-                    <span className="text-xs text-muted-foreground">{c.productCount}</span>
                   </button>
                 </li>
               ))}
@@ -240,8 +238,8 @@ export default function Products() {
           ) : (
             <EmptyState
               icon={<PackageSearch className="h-6 w-6" />}
-              title="No products match these filters"
-              description="Try a different search term, widen the price range, or clear the filters to see everything in the store."
+              title="These requirements are not available"
+              description="No products match the filters you selected. Try widening the price range, choosing another category, or clearing the filters."
               action={<Button onClick={() => navigate("/products")}>Clear all filters</Button>}
             />
           )}

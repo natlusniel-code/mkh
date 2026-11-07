@@ -5,45 +5,79 @@
    Dark mode is class-based (add `dark` on <html>/<body>); shadcn/ui token set. */
 @custom-variant dark (&:is(.dark *));
 
+/* ── MarketHub design tokens ────────────────────────────────────────────────
+   Brand: indigo/violet primary, amber accent for discounts and badges.
+   Surfaces stay white/near-white so the dense product grids read cleanly. */
 :root {
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+
   --background: hsl(0 0% 100%);
-  --foreground: hsl(222.2 84% 4.9%);
+  --foreground: hsl(240 22% 12%);
   --card: hsl(0 0% 100%);
-  --card-foreground: hsl(222.2 84% 4.9%);
-  --primary: hsl(222.2 47.4% 11.2%);
-  --primary-foreground: hsl(210 40% 98%);
-  --secondary: hsl(210 40% 96.1%);
-  --secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --muted: hsl(210 40% 96.1%);
-  --muted-foreground: hsl(215.4 16.3% 46.9%);
-  --accent: hsl(210 40% 96.1%);
-  --accent-foreground: hsl(222.2 47.4% 11.2%);
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(210 40% 98%);
-  --border: hsl(214.3 31.8% 91.4%);
-  --input: hsl(214.3 31.8% 91.4%);
-  --ring: hsl(222.2 84% 4.9%);
+  --card-foreground: hsl(240 22% 12%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(240 22% 12%);
+
+  --primary: hsl(243 75% 59%); /* indigo 600 */
+  --primary-foreground: hsl(0 0% 100%);
+  --primary-soft: hsl(243 100% 97%);
+
+  --secondary: hsl(243 40% 96%);
+  --secondary-foreground: hsl(243 30% 22%);
+
+  --muted: hsl(240 14% 96%);
+  --muted-foreground: hsl(240 8% 46%);
+
+  --accent: hsl(38 95% 92%); /* amber tint */
+  --accent-foreground: hsl(28 85% 28%);
+  --amber: hsl(38 95% 51%);
+  --amber-foreground: hsl(28 90% 18%);
+
+  --destructive: hsl(0 76% 52%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --success: hsl(160 84% 32%);
+  --success-foreground: hsl(0 0% 100%);
+
+  --border: hsl(240 12% 90%);
+  --input: hsl(240 12% 88%);
+  --ring: hsl(243 75% 59%);
+
+  --violet: hsl(262 83% 58%);
 }
 
 .dark {
-  --background: hsl(222.2 84% 4.9%);
-  --foreground: hsl(210 40% 98%);
-  --card: hsl(222.2 84% 4.9%);
-  --card-foreground: hsl(210 40% 98%);
-  --primary: hsl(210 40% 98%);
-  --primary-foreground: hsl(222.2 47.4% 11.2%);
-  --secondary: hsl(217.2 32.6% 17.5%);
-  --secondary-foreground: hsl(210 40% 98%);
-  --muted: hsl(217.2 32.6% 17.5%);
-  --muted-foreground: hsl(215 20.2% 65.1%);
-  --accent: hsl(217.2 32.6% 17.5%);
-  --accent-foreground: hsl(210 40% 98%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(210 40% 98%);
-  --border: hsl(217.2 32.6% 17.5%);
-  --input: hsl(217.2 32.6% 17.5%);
-  --ring: hsl(212.7 26.8% 83.9%);
+  --background: hsl(240 24% 7%);
+  --foreground: hsl(240 12% 96%);
+  --card: hsl(240 20% 10%);
+  --card-foreground: hsl(240 12% 96%);
+  --popover: hsl(240 20% 10%);
+  --popover-foreground: hsl(240 12% 96%);
+
+  --primary: hsl(243 85% 70%);
+  --primary-foreground: hsl(243 40% 10%);
+  --primary-soft: hsl(243 40% 18%);
+
+  --secondary: hsl(240 16% 16%);
+  --secondary-foreground: hsl(240 12% 96%);
+
+  --muted: hsl(240 16% 16%);
+  --muted-foreground: hsl(240 8% 66%);
+
+  --accent: hsl(38 60% 20%);
+  --accent-foreground: hsl(38 95% 80%);
+  --amber: hsl(38 95% 58%);
+  --amber-foreground: hsl(28 90% 14%);
+
+  --destructive: hsl(0 70% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --success: hsl(160 70% 45%);
+  --success-foreground: hsl(160 40% 10%);
+
+  --border: hsl(240 14% 20%);
+  --input: hsl(240 14% 24%);
+  --ring: hsl(243 85% 70%);
+
+  --violet: hsl(262 85% 70%);
 }
 
 /* Map design tokens to Tailwind's theme so utilities (bg-primary, border-border,
@@ -53,30 +87,110 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-amber: var(--amber);
+  --color-amber-foreground: var(--amber-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-violet: var(--violet);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 12px);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
+  html {
+    -webkit-text-size-adjust: 100%;
   }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+  }
+  /* Product imagery is dense; kill the drag-ghost so grids feel like an app. */
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer utilities {
+  .mh-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .mh-page-title {
+    @apply text-2xl font-bold tracking-tight sm:text-3xl;
+  }
+  .mh-section-title {
+    @apply text-lg font-semibold tracking-tight sm:text-xl;
+  }
+  .mh-caption {
+    @apply text-xs font-medium uppercase tracking-wide text-muted-foreground;
+  }
+  .mh-card-hover {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg;
+  }
+  .mh-scrollbar-none {
+    scrollbar-width: none;
+  }
+  .mh-scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes mh-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.mh-fade-up {
+  animation: mh-fade-up 0.35s ease-out both;
+}
+
+@keyframes mh-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.mh-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--muted);
+}
+.mh-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: mh-shimmer 1.4s infinite;
 }

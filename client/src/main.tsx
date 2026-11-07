@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, makeTrpcClient } from "./_core/trpc";
 import { AuthProvider } from "./_core/useAuth";
 import { ErrorBoundary } from "./_core/ErrorBoundary";
+import { StoreProvider } from "./lib/store";
 import App from "./App";
 import "./index.css";
 
@@ -14,7 +15,9 @@ function Root() {
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <App />
+          <StoreProvider>
+            <App />
+          </StoreProvider>
         </AuthProvider>
       </QueryClientProvider>
     </trpc.Provider>

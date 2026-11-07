@@ -18,7 +18,9 @@ vi.mock("./_core/auth", () => {
 vi.mock("./_core/storage", () => ({
   storageCommit: vi.fn(),
   storageDeleteOwned: vi.fn(),
+  storageDeleteAny: vi.fn(),
   storageListByOwner: vi.fn(),
+  storageListAll: vi.fn(),
   storagePutUrl: vi.fn(),
   StorageError: class StorageError extends Error {
     code: string;
@@ -29,14 +31,17 @@ vi.mock("./_core/storage", () => ({
   },
 }));
 
-vi.mock("./db", () => ({
-  listItemsByOwner: vi.fn(),
-  createItem: vi.fn(),
-  deleteItem: vi.fn(),
+// Mock the _core db leaf (not the business ../db): routers.ts imports
+// isUniqueViolation from ./_core/db, which pulls in ./_core/env and demands
+// DATABASE_URL at module load. Mocking the leaf keeps the business db real.
+vi.mock("./_core/db", () => ({
+  db: {},
+  atomic: vi.fn(),
+  isUniqueViolation: () => false,
 }));
 
 const { sanitizeBasename } = await import("./routers");
-const { storageDeleteOwned, StorageError } = await import("./_core/storage");
+const { storageDeleteAny, StorageError } = await import("./_core/storage");
 const { registerLocalUser, EmailTakenError } = await import("./_core/auth");
 
 // C1c: uploadUrl's key is `${uuid}-${sanitizeBasename(name)}`. The uuid prefix
@@ -114,26 +119,27 @@ describe("sanitizeBasename", () => {
   });
 });
 
-// C1d (regression): storageDeleteOwned runs the key through canonicalKey,
+// C1d (regression): storageDeleteAny runs the key through canonicalKey,
 // which throws StorageError("forbidden") for a malformed key (e.g. a
-// "../"-traversal segment) BEFORE any db/network access. files.remove had no
-// try/catch, so that throw used to escape as a raw StorageError, which tRPC
-// wraps as an opaque INTERNAL_SERVER_ERROR (500) for what is plainly bad
+// "../"-traversal segment) BEFORE any db/network access. admin.deleteMedia
+// wraps that call in a try/catch, so the throw becomes a TRPCError
+// BAD_REQUEST rather than escaping as a raw StorageError, which tRPC would
+// wrap as an opaque INTERNAL_SERVER_ERROR (500) for what is plainly bad
 // client input. Exercise the real router (only auth/storage/db are mocked —
 // ./_core/trpc is real) via makeCaller so this asserts the actual error the
 // client would receive, not a re-implementation of the mapping.
-describe("files.remove", () => {
+describe("admin.deleteMedia", () => {
   it("maps a malformed key (StorageError forbidden) to TRPCError BAD_REQUEST, not a raw throw", async () => {
-    vi.mocked(storageDeleteOwned).mockRejectedValueOnce(
+    vi.mocked(storageDeleteAny).mockRejectedValueOnce(
       new StorageError("unsafe storage key (diverges from platform normalization): ../evil.pdf", "forbidden"),
     );
     const caller = makeCaller({
       c: {} as never,
       db: {} as never,
-      user: { id: "user-1" } as never,
+      user: { id: "user-1", role: "admin" } as never,
     });
 
-    const err = await caller.files.remove({ key: "../evil.pdf" }).catch((e) => e);
+    const err = await caller.admin.deleteMedia({ key: "../evil.pdf" }).catch((e) => e);
 
     expect(err).toBeInstanceOf(TRPCError);
     expect((err as TRPCError).code).toBe("BAD_REQUEST");

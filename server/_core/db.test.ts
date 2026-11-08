@@ -78,14 +78,31 @@ void _typeOnlyBannedMethodsStayBanned;
 // that owns its server, and a handful of them exhausts the cluster's slots.
 describe("tcp pool", () => {
   it("caps connections at env.dbPoolMax", async () => {
-    await loadWith("tcp", 3);
+    const { db } = await loadWith("tcp", 3);
+    // The driver is built on FIRST USE, not at import (see db.ts) — so the pool
+    // only exists once something actually touches the handle.
+    void (db as unknown as { select: unknown }).select;
     expect(poolConfigs).toHaveLength(1);
     expect(poolConfigs[0].max).toBe(3);
     expect(poolConfigs[0].connectionString).toBe("postgres://x");
   });
 
   it("opens no pool at all on http", async () => {
-    await loadWith("http");
+    const { db } = await loadWith("http");
+    void (db as unknown as { select: unknown }).select;
+    expect(poolConfigs).toHaveLength(0);
+  });
+
+  // The regression guard for the outage the lazy driver exists for. This used to
+  // be `const driver = … makeTcp()` at module top level, and `makeTcp()` reads
+  // env.databaseUrl, which THROWS when DATABASE_URL is unset. Because
+  // server/vercel.ts imports routers → server/db.ts → _core/db → _core/env, that
+  // throw happened during IMPORT: every request answered
+  // `500 FUNCTION_INVOCATION_FAILED`, /api/health included, and the client
+  // reported it as `Unexpected token 'A', "A server e"... is not valid JSON`.
+  // Importing this module must therefore never build a connection.
+  it("builds no driver at import time", async () => {
+    await loadWith("tcp", 3);
     expect(poolConfigs).toHaveLength(0);
   });
 });

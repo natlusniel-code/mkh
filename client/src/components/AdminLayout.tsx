@@ -5,9 +5,11 @@ import {
   LayoutDashboard,
   Package,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   Store,
   Tags,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { trpc } from "@/_core/trpc";
@@ -30,6 +32,11 @@ const NAV = [
 /**
  * Admin shell. The role check is enforced server-side on every adminProcedure;
  * this guard only keeps non-admins out of the UI (and shows them the door).
+ *
+ * The admin area is deliberately a DIFFERENT shell from the storefront: a large
+ * indigo/violet banner sits at the very top so there is never any doubt which
+ * side of the app you are in, and the storefront's bottom navigation is not
+ * rendered here (see BottomNav — it hides itself on /admin routes too).
  */
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -42,13 +49,26 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="mh-container py-16">
         <div className="mx-auto max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
+          <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet text-white">
+            <ShieldCheck className="h-6 w-6" />
+          </span>
           <h1 className="text-lg font-bold">Administrators only</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your account doesn't have admin access. If you believe this is a mistake, ask an existing administrator to promote you.
+            Your account doesn't have admin access. If you believe this is a mistake, ask an existing
+            administrator to promote you — or create an administrator account with the admin sign-up
+            code.
           </p>
-          <Link to="/" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-            Back to the store
-          </Link>
+          <div className="mt-5 flex flex-col gap-2">
+            <Link
+              to="/admin/register"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              <UserPlus className="h-4 w-4" /> Create an administrator account
+            </Link>
+            <Link to="/" className="text-sm font-medium text-primary hover:underline">
+              Back to the store
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -58,6 +78,42 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-muted/30">
+      {/* ── ADMIN BANNER ──────────────────────────────────────────────────────
+          Large, prominent and NON-sticky: it identifies the admin landing page
+          at a glance without fighting the storefront's hide-on-scroll header
+          behaviour, and it scrolls away with the page. */}
+      <div className="bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-600 text-white">
+        <div className="mx-auto max-w-[1400px] px-4 py-6 sm:py-8">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+              <ShieldCheck className="h-7 w-7" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/70">
+                Administrator area
+              </p>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+                MarketHub Admin
+              </h1>
+              <p className="mt-0.5 text-sm text-white/80">
+                Admin landing page — products, orders, payments and customers.
+              </p>
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold ring-1 ring-white/25">
+                Signed in as {user.name ?? user.email}
+              </span>
+              <Link
+                to="/admin/register"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 shadow-sm transition-opacity hover:opacity-90"
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Create admin account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <header className="sticky top-0 z-30 border-b bg-background">
         <div className="flex h-14 items-center gap-3 px-4">
           <Link to="/admin" className="flex items-center gap-2">

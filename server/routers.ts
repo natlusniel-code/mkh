@@ -1,5 +1,6 @@
 // ── AGENT-OWNED: tRPC API surface ────────────────────────────────────────────
 // Thin procedures: zod validation → server/db.ts → typed result.
+import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, publicProcedure, protectedProcedure, adminProcedure } from "./_core/trpc";
@@ -179,6 +180,96 @@ const authRouter = router({
     await authProvider().logout(ctx.c);
     return { ok: true };
   }),
+
+  // ── admin sign-up ────────────────────────────────────────────────────────
+  // Creating an ADMIN account is gated by the ADMIN_SIGNUP_CODE environment
+  // variable. Without that gate, a public sign-up form on /admin would let
+  // anyone who found the URL grant themselves full control of products, orders
+  // and payment approval — so when the variable is unset the feature is OFF
+  // rather than open.
+  //
+  // Public on purpose: the form has to know whether to offer itself before
+  // anyone is signed in. It reveals only whether the feature is enabled.
+  adminSignupStatus: publicProcedure.query(() => ({
+    enabled: Boolean(process.env.ADMIN_SIGNUP_CODE),
+  })),
+
+  adminSignup: publicProcedure
+    .input(
+      z.object({
+        code: z.string().min(1, "Enter the admin sign-up code"),
+        fullName: z.string().min(2, "Enter your full name"),
+        email: z.string().min(3, "Enter a valid email address"),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+        confirmPassword: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // One bucket for the whole endpoint: the code is the only thing standing
+      // between a stranger and admin, so guessing must be slow.
+      rateLimit("admin-signup", 10, 60_000);
+
+      const expected = process.env.ADMIN_SIGNUP_CODE;
+      if (!expected) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Admin sign-up is disabled. Set ADMIN_SIGNUP_CODE in the environment to enable it.",
+        });
+      }
+
+      // Constant-time compare: a plain `===` leaks the code one character at a
+      // time to anyone willing to measure response times.
+      const given = Buffer.from(input.code);
+      const want = Buffer.from(expected);
+      const codeOk =
+        given.length === want.length && timingSafeEqual(given, want);
+      if (!codeOk) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "That admin sign-up code is not correct.",
+        });
+      }
+
+      if (input.confirmPassword !== undefined && input.confirmPassword !== input.password) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Passwords do not match" });
+      }
+
+      const email = input.email.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Enter a valid email address" });
+      }
+      const fullName = input.fullName.trim();
+
+      try {
+        const created = await registerLocalUser(email, input.password, fullName);
+        await q.upsertProfile(created.id, { fullName, phone: null });
+        // The promotion happens server-side, after the code was verified — the
+        // client never gets to ask for a role.
+        await q.setUserRole(created.id, "admin");
+        await authProvider().login(ctx.c, email, input.password);
+        await q.createNotification({
+          userId: created.id,
+          audience: "admin",
+          type: "welcome",
+          title: "Administrator account created",
+          body: "You now have access to the MarketHub admin dashboard.",
+          link: "/admin",
+        });
+        return { ok: true };
+      } catch (e) {
+        if (e instanceof EmailTakenError) {
+          throw new TRPCError({ code: "CONFLICT", message: e.message });
+        }
+        if (isUniqueViolation(e)) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "That email is already registered — try logging in instead.",
+          });
+        }
+        throw e;
+      }
+    }),
 });
 
 // ── catalog ──────────────────────────────────────────────────────────────────

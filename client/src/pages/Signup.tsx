@@ -94,7 +94,25 @@ export default function Signup() {
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone number</Label>
-                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08012345678" inputMode="tel" required />
+                <div className="flex items-stretch">
+                  <span className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm font-medium text-muted-foreground">
+                    +234
+                  </span>
+                  <Input
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="8012345678"
+                    inputMode="tel"
+                    autoComplete="tel-national"
+                    className="rounded-l-none"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Nigerian number. Enter it with or without the country code — 08012345678 and
+                  +2348012345678 both work.
+                </p>
               </div>
             )}
 

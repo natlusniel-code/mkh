@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/_core/errors";
 
 /**
  * A designed empty state: what this view is, why it is empty, and the action
@@ -47,7 +48,9 @@ export function ErrorState({ message, onRetry, className }: { message?: string; 
   return (
     <div className={cn("flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-6 py-10 text-center", className)}>
       <h3 className="text-base font-semibold text-destructive">Something went wrong</h3>
-      <p className="max-w-md text-sm text-muted-foreground">{message ?? "We couldn't load this right now. Please try again."}</p>
+      <p className="max-w-md text-sm text-muted-foreground">
+        {message ? friendlyError(message) : "We couldn't load this right now. Please try again."}
+      </p>
       {onRetry ? (
         <button
           type="button"

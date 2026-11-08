@@ -13,7 +13,7 @@ import { env } from "./env";
 //   http (hosted): @neondatabase/serverless over HTTPS. One request per query,
 //                  no TCP pool — the only thing that works in a WebContainer
 //                  preview (a browser has no raw socket) and the right fit for
-//                  scale-to-zero Cloud Run.
+//                  scale-to-zero Cloud Run / Vercel.
 //   tcp:           node-postgres pool. Local / self-hosted Postgres.
 //
 // INTERACTIVE TRANSACTIONS DO NOT EXIST ON `http`, which is why `db` below is
@@ -56,9 +56,42 @@ function makeTcp() {
   return drizzleTcp(pool, { schema });
 }
 
-const driver = env.dbDriver === "http" ? drizzleHttp(neon(env.databaseUrl), { schema }) : makeTcp();
+// ── LAZY DRIVER ──────────────────────────────────────────────────────────────
+// This used to be `const driver = env.dbDriver === "http" ? … : makeTcp()` at
+// module top level. `makeTcp()` reads `env.databaseUrl`, which THROWS when
+// DATABASE_URL is unset — so a missing variable killed the process during
+// IMPORT, before any route existed. On Vercel that is
+// `500 FUNCTION_INVOCATION_FAILED` on every request, `/api/health` included.
+//
+// Now the driver is built on FIRST USE and memoised. Importing this module is
+// always safe; a missing DATABASE_URL surfaces as a normal request-time error
+// (and `/api/health` reports the variable by name instead of dying).
+let _driver: ReturnType<typeof makeTcp> | NeonHttpDatabase<typeof schema> | undefined;
 
-export const db: AppDB = driver as unknown as AppDB;
+function getDriver(): ReturnType<typeof makeTcp> | NeonHttpDatabase<typeof schema> {
+  if (!_driver) {
+    _driver =
+      env.dbDriver === "http"
+        ? drizzleHttp(neon(env.databaseUrl), { schema })
+        : makeTcp();
+  }
+  return _driver;
+}
+
+// A Proxy, not the driver itself: `db.select(…)` must resolve the driver at call
+// time. Methods are bound to the real driver so drizzle's internal `this` stays
+// correct. Property reads that are not functions (rare on a drizzle handle) pass
+// through unchanged.
+export const db: AppDB = new Proxy({} as AppDB, {
+  get(_target, prop, receiver) {
+    const driver = getDriver();
+    const value = Reflect.get(driver as object, prop, receiver);
+    return typeof value === "function" ? value.bind(driver) : value;
+  },
+  has(_target, prop) {
+    return prop in (getDriver() as object);
+  },
+});
 
 /** Run several writes as ONE atomic unit — the replacement for `db.transaction`.
  *
@@ -82,6 +115,7 @@ export const db: AppDB = driver as unknown as AppDB;
 export async function atomic<T extends Readonly<[BatchItem<"pg">, ...BatchItem<"pg">[]]>>(
   build: (d: AppDB) => T,
 ): Promise<BatchResponse<T>> {
+  const driver = getDriver();
   if (env.dbDriver === "http") {
     return (driver as NeonHttpDatabase<typeof schema>).batch(build(db));
   }

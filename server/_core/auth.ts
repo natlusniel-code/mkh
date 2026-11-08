@@ -32,7 +32,17 @@ export interface AuthProvider {
 }
 
 const COOKIE = sessionCookieName(env.appSlug);
-const secretKey = new TextEncoder().encode(env.jwtSecret);
+
+// Lazy, NOT a module-level `new TextEncoder().encode(env.jwtSecret)`: reading
+// env.jwtSecret throws when JWT_SECRET is unset, and this module is imported
+// (via routers → context) before any route exists — so a top-level read would
+// turn one missing variable into a boot failure on every request. Resolved on
+// first use and memoised; the key cannot change within a process lifetime.
+let _secretKey: Uint8Array | undefined;
+function secretKey(): Uint8Array {
+  if (!_secretKey) _secretKey = new TextEncoder().encode(env.jwtSecret);
+  return _secretKey;
+}
 
 function toSessionUser(row: typeof users.$inferSelect): SessionUser {
   // password_hash is intentionally dropped here — never leaves the auth layer.
@@ -44,7 +54,7 @@ class LocalAuthProvider implements AuthProvider {
     const token = getCookie(c, COOKIE);
     if (!token) return null;
     try {
-      const { payload } = await jwtVerify(token, secretKey);
+      const { payload } = await jwtVerify(token, secretKey());
       const userId = payload.sub;
       if (!userId) return null;
       const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -76,7 +86,7 @@ class LocalAuthProvider implements AuthProvider {
       .setSubject(userId)
       .setIssuedAt()
       .setExpirationTime("30d")
-      .sign(secretKey);
+      .sign(secretKey());
     setCookie(c, COOKIE, token, sessionCookieOptions(env.isProd || requestIsSecure(c)));
   }
 }

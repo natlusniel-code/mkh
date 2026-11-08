@@ -1,5 +1,22 @@
 // Central, validated env access. Platform SDK only — business code should not
 // read process.env directly.
+//
+// ── WHY NOTHING HERE IS READ AT MODULE LOAD ──────────────────────────────────
+// This file used to call `required("DATABASE_URL")` and `required("JWT_SECRET")`
+// at module top level, and `required()` THROWS when the variable is empty. That
+// made one unset variable a total outage: `server/vercel.ts` imports
+// `./routers` → `server/db.ts` → `_core/db` → `_core/env`, so the throw happened
+// during import, before a single route existed. On Vercel that surfaced as
+// `500 FUNCTION_INVOCATION_FAILED` on EVERY request — including `/api/health`,
+// which needs no database and no auth at all — and the client then tried to
+// `.json()` Vercel's plain-text error page, printing
+// `Unexpected token 'A', "A server e"... is not valid JSON` to shoppers.
+//
+// The rule this file now follows: a missing variable must fail AT THE POINT OF
+// USE, with a message naming the variable, and must never prevent the process
+// from starting. `env.databaseUrl` / `env.jwtSecret` are therefore GETTERS, and
+// `missingRequired()` lets a health check report what is absent without
+// throwing. See `_core/db.ts` for the matching lazy driver.
 function required(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`Missing required env var: ${name}`);
@@ -36,12 +53,34 @@ function userVar(name: string): string | undefined {
   return process.env[name];
 }
 
+/**
+ * The platform variables this app cannot run without, in the order a human
+ * should set them. `health()` reports these by NAME (never by value) so a
+ * misconfigured deployment says what is wrong instead of returning an opaque
+ * 500 — which is exactly the diagnosis that was missing when the Vercel
+ * function died on every request.
+ */
+const REQUIRED_PLATFORM_VARS = ["DATABASE_URL", "JWT_SECRET"] as const;
+
 export const env = {
   isProd,
-  databaseUrl: required("DATABASE_URL"),
+
+  // ── Platform values: GETTERS, never module-level reads (see the header) ──
+  /** Postgres DSN. Throws at the point of use if unset. */
+  get databaseUrl(): string {
+    return required("DATABASE_URL");
+  },
+  /** Session signing secret. Throws at the point of use if unset. */
+  get jwtSecret(): string {
+    return required("JWT_SECRET");
+  },
+
   // DB driver select (see db.ts). "tcp" = node-postgres pool (default, portable,
   // right for a resident process); "http" = Neon serverless HTTP (Neon DSN +
   // scale-to-zero only). Absent ⇒ "tcp" so the template works on any Postgres.
+  //
+  // On a SERVERLESS host (Vercel) set DB_DRIVER=http: a TCP pool is built once
+  // per frozen container and cannot be relied on between invocations.
   dbDriver: (process.env.DB_DRIVER ?? "tcp") as "tcp" | "http",
   // Max TCP connections this app's pool may hold. Only the "tcp" driver has a
   // pool; "http" opens a connection per request and ignores this.
@@ -55,7 +94,6 @@ export const env = {
   // `|| 5` also catches a non-numeric value: `Number("八")` is NaN, and a pool
   // built with max: NaN is a subtle production fault rather than a startup error.
   dbPoolMax: Math.max(1, Number(process.env.DB_POOL_MAX) || 5),
-  jwtSecret: required("JWT_SECRET"),
   // The default MUST stay "local": apps created before the none mode existed
   // have no AUTH_PROVIDER in their .env and must keep email/password accounts.
   authProvider: (process.env.AUTH_PROVIDER ?? "local") as "none" | "local" | "sso",
@@ -65,6 +103,16 @@ export const env = {
   storage: {
     presignUrl: process.env.APP_STORAGE_PRESIGN_URL ?? "",
     token: process.env.APP_STORAGE_TOKEN ?? "",
+  },
+
+  /**
+   * Names of the required platform variables that are currently UNSET.
+   * Empty array ⇒ the deployment is configured. NAMES ONLY — this is safe to
+   * return from an unauthenticated health endpoint, and it is the whole point:
+   * a broken deploy should say `["DATABASE_URL"]`, not `FUNCTION_INVOCATION_FAILED`.
+   */
+  missingRequired(): string[] {
+    return REQUIRED_PLATFORM_VARS.filter((name) => !process.env[name]);
   },
 
   /**

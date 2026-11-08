@@ -15,6 +15,7 @@ import Wishlist from "./pages/Wishlist";
 import Account from "./pages/Account";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import AdminSignup from "./pages/AdminSignup";
 import NotFound from "./pages/NotFound";
 
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -60,6 +61,8 @@ export default function App() {
       {/* auth (standalone, no store chrome) */}
       <Route path="/login" component={Login} />
       <Route path="/register" component={Signup} />
+      {/* Admin sign-up is standalone too: it must be reachable while signed out. */}
+      <Route path="/admin/register" component={AdminSignup} />
 
       {/* admin */}
       <Route path="/admin"><Admin><AdminDashboard /></Admin></Route>

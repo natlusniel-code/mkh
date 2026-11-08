@@ -25,6 +25,11 @@ export function BottomNav() {
   const session = trpc.auth.session.useQuery(undefined, { enabled: Boolean(user) });
   const unread = session.data?.unread ?? 0;
 
+  // The admin area is a different shell with its own navigation — the storefront
+  // tab bar has no business there, and its "Profile" tab would point at a
+  // customer page an administrator is not looking for.
+  if (location.startsWith("/admin")) return null;
+
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-[backdrop-filter]:bg-background/85"

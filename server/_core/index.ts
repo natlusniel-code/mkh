@@ -9,12 +9,14 @@ import { createContext } from "./context";
 import { serveAppStorage } from "./storage";
 import { getJob } from "./jobs";
 import { mountClient } from "./serve";
+import { healthHandler } from "./health";
 import { env } from "./env";
 
 // Single process: tRPC API + scoped storage proxy + job callbacks + (prod) SPA.
 const app = new Hono();
 
-app.get("/api/health", (c) => c.json({ ok: true }));
+// Liveness + configuration report. Always JSON — reports missing env var NAMES.
+app.get("/api/health", healthHandler);
 
 // tRPC — all app business endpoints live under /trpc (agent writes routers.ts).
 app.use(
